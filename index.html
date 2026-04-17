@@ -111,13 +111,28 @@
     gap: 8px;
   }
   .account-row:last-child { border-bottom: none; }
+  .account-name-wrap {
+    min-width: 0;
+    flex: 1;
+  }
   .account-name {
     font-size: 14px;
     display: flex;
     align-items: center;
     gap: 8px;
     min-width: 0;
-    flex: 1;
+  }
+  .account-note {
+    font-size: 12px;
+    color: var(--text-2);
+    margin-top: 4px;
+    margin-left: 16px;
+    word-break: break-word;
+  }
+  .account-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
   }
   .account-name-text {
     overflow: hidden;
@@ -340,6 +355,7 @@
         <option value="現金">現金</option>
         <option value="その他">その他</option>
       </select>
+      <input type="text" id="new-note" placeholder="備考（任意・例: つみたてNISA用）" />
       <div class="btn-row">
         <button id="save-account">追加</button>
         <button id="cancel-account">キャンセル</button>
@@ -532,13 +548,20 @@
       return;
     }
     list.innerHTML = state.accounts.map(acc => {
+      const noteHtml = acc.note ? '<div class="account-note">' + escapeHtml(acc.note) + '</div>' : '';
       return '<div class="account-row">' +
+        '<div class="account-name-wrap">' +
         '<div class="account-name">' +
         '<span class="dot" style="background: ' + (TYPE_COLORS[acc.type] || '#888') + ';"></span>' +
         '<span class="account-name-text">' + escapeHtml(acc.name) + '</span>' +
         '<span class="account-type">' + acc.type + '</span>' +
         '</div>' +
+        noteHtml +
+        '</div>' +
+        '<div class="account-actions">' +
+        '<button data-edit="' + acc.id + '" class="del-btn">編集</button>' +
         '<button data-del="' + acc.id + '" class="del-btn">削除</button>' +
+        '</div>' +
         '</div>';
     }).join('');
 
@@ -552,6 +575,15 @@
           save();
           render();
         }
+      });
+    });
+
+    list.querySelectorAll('button[data-edit]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-edit');
+        const acc = state.accounts.find(a => a.id === id);
+        if (!acc) return;
+        openEditDialog(acc);
       });
     });
   }
@@ -760,6 +792,21 @@
     container.innerHTML = rows;
   }
 
+  function openEditDialog(acc) {
+    const newName = prompt('口座名を編集', acc.name);
+    if (newName === null) return; // キャンセル
+    const trimmedName = newName.trim();
+    if (!trimmedName) { alert('口座名を入力してください'); return; }
+
+    const newNote = prompt('備考を編集（空欄で消去）', acc.note || '');
+    if (newNote === null) return; // キャンセル
+
+    acc.name = trimmedName;
+    acc.note = newNote.trim();
+    save();
+    render();
+  }
+
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
@@ -804,18 +851,22 @@
     document.getElementById('cancel-account').addEventListener('click', () => {
       document.getElementById('add-account-form').style.display = 'none';
       document.getElementById('new-name').value = '';
+      document.getElementById('new-note').value = '';
     });
     document.getElementById('save-account').addEventListener('click', () => {
       const name = document.getElementById('new-name').value.trim();
       const type = document.getElementById('new-type').value;
+      const note = document.getElementById('new-note').value.trim();
       if (!name) { alert('口座名を入力してください'); return; }
       state.accounts.push({
         id: 'acc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
         name: name,
-        type: type
+        type: type,
+        note: note
       });
       save();
       document.getElementById('new-name').value = '';
+      document.getElementById('new-note').value = '';
       document.getElementById('add-account-form').style.display = 'none';
       render();
     });
