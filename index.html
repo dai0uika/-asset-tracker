@@ -364,7 +364,13 @@
   </div>
 
   <div class="card">
-    <h3>本日の残高を記録</h3>
+    <h3>残高を記録</h3>
+    <div class="input-row" style="margin-bottom: 12px;">
+      <label class="input-label">
+        <span class="input-label-text" style="margin-left: 0;">記録日</span>
+      </label>
+      <input type="date" id="snapshot-date-input" />
+    </div>
     <div id="snapshot-inputs"></div>
     <div class="btn-row" style="margin-top: 10px;">
       <button id="save-snapshot" style="background: var(--accent); color: white; border-color: var(--accent);">記録する</button>
@@ -872,21 +878,28 @@
     });
 
     document.getElementById('save-snapshot').addEventListener('click', () => {
+      const dateInputEl = document.getElementById('snapshot-date-input');
+      const selectedDate = dateInputEl.value; // "YYYY-MM-DD" 形式
+      if (!selectedDate) { alert('記録日を選択してください'); return; }
+
       const balances = {};
       document.querySelectorAll('input[data-bal]').forEach(inp => {
         const id = inp.getAttribute('data-bal');
         const val = parseFloat(inp.value) || 0;
         balances[id] = val;
       });
-      const now = new Date();
-      const today = now.toISOString().slice(0, 10);
 
-      const existing = state.snapshots.find(s => s.date.slice(0, 10) === today);
+      // 選択日付の午後12時（昼）をISOで保存。タイムゾーン影響を受けにくい。
+      const dateObj = new Date(selectedDate + 'T12:00:00');
+      const dateIso = dateObj.toISOString();
+
+      const existing = state.snapshots.find(s => s.date.slice(0, 10) === selectedDate);
       if (existing) {
+        if (!confirm(selectedDate + 'のデータはすでに存在します。上書きしますか？')) return;
         existing.balances = balances;
-        existing.date = now.toISOString();
+        existing.date = dateIso;
       } else {
-        state.snapshots.push({ date: now.toISOString(), balances: balances });
+        state.snapshots.push({ date: dateIso, balances: balances });
       }
       state.snapshots.sort((a, b) => new Date(a.date) - new Date(b.date));
       save();
@@ -969,6 +982,14 @@
 
   load();
   setupEvents();
+  // 日付入力のデフォルトを今日にセット
+  (function initDateInput() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    document.getElementById('snapshot-date-input').value = y + '-' + m + '-' + d;
+  })();
   render();
 })();
 </script>
