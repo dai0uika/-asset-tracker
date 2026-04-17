@@ -272,6 +272,22 @@
     border-radius: 0;
   }
   .menu-dropdown button:hover { background: var(--surface-2); }
+  .legend-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 0.5px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text);
+    user-select: none;
+    transition: opacity 0.15s;
+  }
+  .legend-chip.off { opacity: 0.35; }
+  .legend-chip .dot { width: 10px; height: 10px; }
   @media (max-width: 380px) {
     .total-amount { font-size: 24px; }
     .input-row { grid-template-columns: minmax(0, 1fr) 110px; }
@@ -356,6 +372,23 @@
   </div>
 
   <div class="card">
+    <div class="card-head">
+      <h3>口座別の推移</h3>
+      <select id="range-select-per" style="width: auto; font-size: 13px; min-height: 36px; padding: 6px 10px;">
+        <option value="all">すべて</option>
+        <option value="30">30日</option>
+        <option value="90">90日</option>
+        <option value="365">1年</option>
+      </select>
+    </div>
+    <div id="per-legend" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; font-size: 12px;"></div>
+    <div class="chart-wrap">
+      <canvas id="per-account-chart" role="img" aria-label="口座別残高推移の折れ線グラフ">口座ごとの残高推移を折れ線グラフで表示。</canvas>
+    </div>
+    <div id="no-data-msg-per" class="empty" style="display: none; text-align: center; padding: 1.5rem 0;">まだ履歴がありません。</div>
+  </div>
+
+  <div class="card">
     <h3>履歴（直近10件）</h3>
     <div id="history-list"></div>
   </div>
@@ -376,7 +409,22 @@
 
   let state = { accounts: [], snapshots: [] };
   let chart = null;
+  let perChart = null;
+  let hiddenAccounts = {}; // { accountId: true } で非表示
   let deferredInstallPrompt = null;
+
+  // 口座別グラフ用の色パレット（種別色とは別に、口座ごとに識別しやすい色を振る）
+  const ACCOUNT_PALETTE = [
+    '#378ADD', '#1D9E75', '#D85A30', '#7F77DD', '#D4537E',
+    '#EF9F27', '#639922', '#534AB7', '#0F6E56', '#993C1D',
+    '#185FA5', '#A32D2D', '#885F0B', '#72243E', '#3B6D11'
+  ];
+
+  function colorForAccount(accId) {
+    const idx = state.accounts.findIndex(a => a.id === accId);
+    if (idx < 0) return '#888780';
+    return ACCOUNT_PALETTE[idx % ACCOUNT_PALETTE.length];
+  }
 
   function load() {
     try {
@@ -422,6 +470,7 @@
     renderAccounts();
     renderSnapshotInputs();
     renderChart();
+    renderPerAccountChart();
     renderHistory();
   }
 
@@ -499,6 +548,7 @@
         if (confirm('この口座を削除しますか？（履歴の残高データも削除されます）')) {
           state.accounts = state.accounts.filter(a => a.id !== id);
           state.snapshots.forEach(s => { delete s.balances[id]; });
+          delete hiddenAccounts[id];
           save();
           render();
         }
@@ -577,6 +627,100 @@
           tooltip: {
             callbacks: {
               label: (ctx) => fmt(ctx.parsed.y)
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: {
+              font: { size: 11 },
+              callback: (v) => '¥' + Math.round(v / 10000) + '万'
+            }
+          },
+          x: {
+            ticks: {
+              font: { size: 11 },
+              maxRotation: 0,
+              autoSkipPadding: 12
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderPerAccountChart() {
+    const canvas = document.getElementById('per-account-chart');
+    const noDataMsg = document.getElementById('no-data-msg-per');
+    const legendEl = document.getElementById('per-legend');
+
+    if (state.snapshots.length === 0 || state.accounts.length === 0) {
+      canvas.style.display = 'none';
+      noDataMsg.style.display = 'block';
+      legendEl.innerHTML = '';
+      if (perChart) { perChart.destroy(); perChart = null; }
+      return;
+    }
+    canvas.style.display = 'block';
+    noDataMsg.style.display = 'none';
+
+    const range = document.getElementById('range-select-per').value;
+    let snaps = state.snapshots.slice();
+    if (range !== 'all') {
+      const days = parseInt(range, 10);
+      const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+      snaps = snaps.filter(s => new Date(s.date).getTime() >= cutoff);
+    }
+    if (snaps.length === 0) snaps = state.snapshots.slice(-1);
+
+    const labels = snaps.map(s => formatDate(s.date));
+
+    // 凡例を描画
+    legendEl.innerHTML = state.accounts.map(acc => {
+      const col = colorForAccount(acc.id);
+      const off = hiddenAccounts[acc.id] ? ' off' : '';
+      return '<span class="legend-chip' + off + '" data-toggle="' + acc.id + '">' +
+        '<span class="dot" style="background: ' + col + ';"></span>' +
+        escapeHtml(acc.name) +
+        '</span>';
+    }).join('');
+    legendEl.querySelectorAll('[data-toggle]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const id = chip.getAttribute('data-toggle');
+        hiddenAccounts[id] = !hiddenAccounts[id];
+        renderPerAccountChart();
+      });
+    });
+
+    const datasets = state.accounts.map(acc => {
+      const col = colorForAccount(acc.id);
+      return {
+        label: acc.name,
+        data: snaps.map(s => Math.round(Number(s.balances[acc.id] || 0))),
+        borderColor: col,
+        backgroundColor: col,
+        fill: false,
+        tension: 0.2,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+        borderWidth: 2,
+        hidden: !!hiddenAccounts[acc.id]
+      };
+    });
+
+    if (perChart) perChart.destroy();
+    perChart = new Chart(canvas, {
+      type: 'line',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'nearest', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ctx.dataset.label + ': ' + fmt(ctx.parsed.y)
             }
           }
         },
@@ -739,6 +883,7 @@
     });
 
     document.getElementById('range-select').addEventListener('change', renderChart);
+    document.getElementById('range-select-per').addEventListener('change', renderPerAccountChart);
   }
 
   // PWAインストールプロンプト（Android/Chrome）
