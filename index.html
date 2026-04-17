@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#378ADD">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="資産管理">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>資産管理</title>
+<style>
+  :root {
+    --bg: #f7f6f2;
+    --surface: #ffffff;
+    --surface-2: #f1efe8;
+    --border: rgba(0,0,0,0.12);
+    --text: #1a1a1a;
+    --text-2: #5f5e5a;
+    --text-3: #888780;
+    --accent: #378ADD;
+    --success: #1D9E75;
+    --danger: #D85A30;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a19;
+      --surface: #26262482;
+      --surface-2: #2c2c2a;
+      --border: rgba(255,255,255,0.12);
+      --text: #f0efe8;
+      --text-2: #b4b2a9;
+      --text-3: #888780;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.6;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .app-header {
+    padding: 14px 16px;
+    font-size: 15px;
+    font-weight: 500;
+    border-bottom: 0.5px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .app-container { padding: 12px; max-width: 600px; margin: 0 auto; }
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .card h3 { margin: 0 0 10px 0; font-size: 16px; font-weight: 500; }
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 8px;
+  }
+  .total-label { font-size: 13px; color: var(--text-2); margin-bottom: 4px; }
+  .total-amount { font-size: 30px; font-weight: 500; line-height: 1.15; word-break: break-all; }
+  .total-diff { font-size: 13px; color: var(--text-2); margin-top: 4px; }
+  .breakdown {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .breakdown-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    min-width: 0;
+  }
+  .breakdown-label {
+    font-size: 12px;
+    color: var(--text-2);
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .breakdown-value { font-size: 16px; font-weight: 500; word-break: break-all; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .account-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 0.5px solid var(--border);
+    gap: 8px;
+  }
+  .account-row:last-child { border-bottom: none; }
+  .account-name {
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+  .account-name-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .account-type {
+    font-size: 11px;
+    color: var(--text-2);
+    background: var(--surface-2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  button, input, select {
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text);
+  }
+  button {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    cursor: pointer;
+    min-height: 40px;
+    transition: background 0.15s;
+  }
+  button:hover { background: var(--surface-2); }
+  button:active { transform: scale(0.98); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  input, select {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    min-height: 40px;
+    width: 100%;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(55, 138, 221, 0.15);
+  }
+  .del-btn {
+    font-size: 12px;
+    padding: 6px 10px;
+    min-height: auto;
+    color: var(--text-2);
+    flex-shrink: 0;
+  }
+  .add-form {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 0.5px solid var(--border);
+  }
+  .add-form input, .add-form select { margin-bottom: 8px; }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row button { flex: 1; }
+  .input-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 130px;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .input-label {
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .input-label-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chart-wrap { position: relative; width: 100%; height: 220px; }
+  .history-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 13px;
+  }
+  .history-row:last-child { border-bottom: none; }
+  .empty { font-size: 13px; color: var(--text-2); margin: 0; }
+  .danger-btn { color: var(--danger); border-color: var(--danger); }
+  .icon-btn {
+    background: none;
+    border: none;
+    padding: 6px;
+    font-size: 18px;
+    color: var(--text-2);
+    min-height: auto;
+  }
+  .install-banner {
+    display: none;
+    background: var(--accent);
+    color: white;
+    padding: 12px 16px;
+    font-size: 13px;
+    text-align: center;
+    position: relative;
+  }
+  .install-banner button {
+    background: white;
+    color: var(--accent);
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-weight: 500;
+    margin-left: 8px;
+    font-size: 13px;
+    min-height: auto;
+  }
+  .install-banner .close {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    padding: 4px 8px;
+    cursor: pointer;
+    min-height: auto;
+  }
+  .menu-dropdown {
+    position: absolute;
+    right: 12px;
+    top: 50px;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    padding: 6px 0;
+    display: none;
+    z-index: 20;
+    min-width: 160px;
+  }
+  .menu-dropdown button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    padding: 10px 14px;
+    font-size: 14px;
+    border-radius: 0;
+  }
+  .menu-dropdown button:hover { background: var(--surface-2); }
+  @media (max-width: 380px) {
+    .total-amount { font-size: 24px; }
+    .input-row { grid-template-columns: minmax(0, 1fr) 110px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <span>資産管理</span>
+  <button class="icon-btn" id="menu-btn" aria-label="メニュー">⋯</button>
+</div>
+
+<div class="menu-dropdown" id="menu-dropdown">
+  <button id="export-data">データをエクスポート</button>
+  <button id="import-data">データをインポート</button>
+  <button id="reset-data" style="color: var(--danger);">全データ削除</button>
+</div>
+
+<input type="file" id="import-file" accept="application/json" style="display: none;">
+
+<div class="install-banner" id="install-banner">
+  このアプリをホーム画面に追加できます
+  <button id="install-btn">追加</button>
+  <button class="close" id="close-banner">×</button>
+</div>
+
+<div class="app-container">
+
+  <div class="card">
+    <div class="total-label" id="snapshot-date">本日の総資産</div>
+    <div class="total-amount" id="total-amount">¥0</div>
+    <div class="total-diff" id="total-diff"></div>
+  </div>
+
+  <div class="breakdown" id="breakdown-cards"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>登録口座</h3>
+      <button id="add-account-btn" style="font-size: 13px; padding: 6px 12px; min-height: auto;">口座を追加</button>
+    </div>
+    <div id="accounts-list"></div>
+    <div id="add-account-form" class="add-form" style="display: none;">
+      <input type="text" id="new-name" placeholder="口座名（例: SBI証券）" />
+      <select id="new-type">
+        <option value="証券">証券</option>
+        <option value="銀行">銀行</option>
+        <option value="暗号資産">暗号資産</option>
+        <option value="現金">現金</option>
+        <option value="その他">その他</option>
+      </select>
+      <div class="btn-row">
+        <button id="save-account">追加</button>
+        <button id="cancel-account">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>本日の残高を記録</h3>
+    <div id="snapshot-inputs"></div>
+    <div class="btn-row" style="margin-top: 10px;">
+      <button id="save-snapshot" style="background: var(--accent); color: white; border-color: var(--accent);">記録する</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>総資産の推移</h3>
+      <select id="range-select" style="width: auto; font-size: 13px; min-height: 36px; padding: 6px 10px;">
+        <option value="all">すべて</option>
+        <option value="30">30日</option>
+        <option value="90">90日</option>
+        <option value="365">1年</option>
+      </select>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="trend-chart" role="img" aria-label="総資産推移の折れ線グラフ">総資産の推移を折れ線グラフで表示。</canvas>
+    </div>
+    <div id="no-data-msg" class="empty" style="display: none; text-align: center; padding: 1.5rem 0;">まだ履歴がありません。上で残高を記録してください。</div>
+  </div>
+
+  <div class="card">
+    <h3>履歴（直近10件）</h3>
+    <div id="history-list"></div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  const STORAGE_KEY = 'asset_tracker_v1';
+  const TYPE_COLORS = {
+    '証券': '#378ADD',
+    '銀行': '#1D9E75',
+    '暗号資産': '#D85A30',
+    '現金': '#888780',
+    'その他': '#7F77DD'
+  };
+
+  let state = { accounts: [], snapshots: [] };
+  let chart = null;
+  let deferredInstallPrompt = null;
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) state = JSON.parse(raw);
+    } catch (e) {
+      state = { accounts: [], snapshots: [] };
+    }
+    if (!state.accounts) state.accounts = [];
+    if (!state.snapshots) state.snapshots = [];
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      alert('データの保存に失敗しました。ブラウザの容量が不足している可能性があります。');
+    }
+  }
+
+  function fmt(n) {
+    return '¥' + Math.round(n).toLocaleString('ja-JP');
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return (d.getMonth() + 1) + '/' + d.getDate();
+  }
+
+  function latestSnapshot() {
+    if (state.snapshots.length === 0) return null;
+    return state.snapshots[state.snapshots.length - 1];
+  }
+
+  function totalOfSnapshot(snap) {
+    if (!snap) return 0;
+    return Object.values(snap.balances).reduce((a, b) => a + (Number(b) || 0), 0);
+  }
+
+  function render() {
+    renderTotal();
+    renderBreakdown();
+    renderAccounts();
+    renderSnapshotInputs();
+    renderChart();
+    renderHistory();
+  }
+
+  function renderTotal() {
+    const latest = latestSnapshot();
+    const total = totalOfSnapshot(latest);
+    document.getElementById('total-amount').textContent = fmt(total);
+
+    const dateEl = document.getElementById('snapshot-date');
+    if (latest) {
+      const d = new Date(latest.date);
+      dateEl.textContent = (d.getMonth() + 1) + '月' + d.getDate() + '日時点の総資産';
+    } else {
+      dateEl.textContent = '本日の総資産';
+    }
+
+    const diffEl = document.getElementById('total-diff');
+    if (state.snapshots.length >= 2) {
+      const prev = state.snapshots[state.snapshots.length - 2];
+      const diff = total - totalOfSnapshot(prev);
+      const sign = diff >= 0 ? '+' : '-';
+      const color = diff >= 0 ? 'var(--success)' : 'var(--danger)';
+      diffEl.innerHTML = '前回比 <span style="color: ' + color + '; font-weight: 500;">' + sign + fmt(Math.abs(diff)) + '</span>';
+    } else {
+      diffEl.textContent = '';
+    }
+  }
+
+  function renderBreakdown() {
+    const container = document.getElementById('breakdown-cards');
+    const latest = latestSnapshot();
+    if (!latest || state.accounts.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    const byType = {};
+    state.accounts.forEach(acc => {
+      const bal = Number(latest.balances[acc.id] || 0);
+      byType[acc.type] = (byType[acc.type] || 0) + bal;
+    });
+
+    container.innerHTML = Object.entries(byType)
+      .filter(([, v]) => v > 0)
+      .map(([type, val]) => {
+        return '<div class="breakdown-card">' +
+          '<div class="breakdown-label">' +
+          '<span class="dot" style="background: ' + (TYPE_COLORS[type] || '#888') + ';"></span>' +
+          type + '</div>' +
+          '<div class="breakdown-value">' + fmt(val) + '</div>' +
+          '</div>';
+      }).join('');
+  }
+
+  function renderAccounts() {
+    const list = document.getElementById('accounts-list');
+    if (state.accounts.length === 0) {
+      list.innerHTML = '<p class="empty">口座が未登録です。「口座を追加」から始めてください。</p>';
+      return;
+    }
+    list.innerHTML = state.accounts.map(acc => {
+      return '<div class="account-row">' +
+        '<div class="account-name">' +
+        '<span class="dot" style="background: ' + (TYPE_COLORS[acc.type] || '#888') + ';"></span>' +
+        '<span class="account-name-text">' + escapeHtml(acc.name) + '</span>' +
+        '<span class="account-type">' + acc.type + '</span>' +
+        '</div>' +
+        '<button data-del="' + acc.id + '" class="del-btn">削除</button>' +
+        '</div>';
+    }).join('');
+
+    list.querySelectorAll('button[data-del]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-del');
+        if (confirm('この口座を削除しますか？（履歴の残高データも削除されます）')) {
+          state.accounts = state.accounts.filter(a => a.id !== id);
+          state.snapshots.forEach(s => { delete s.balances[id]; });
+          save();
+          render();
+        }
+      });
+    });
+  }
+
+  function renderSnapshotInputs() {
+    const container = document.getElementById('snapshot-inputs');
+    if (state.accounts.length === 0) {
+      container.innerHTML = '<p class="empty">先に口座を追加してください。</p>';
+      document.getElementById('save-snapshot').disabled = true;
+      return;
+    }
+    document.getElementById('save-snapshot').disabled = false;
+    const latest = latestSnapshot();
+    container.innerHTML = state.accounts.map(acc => {
+      const val = latest ? (latest.balances[acc.id] || '') : '';
+      return '<div class="input-row">' +
+        '<label class="input-label">' +
+        '<span class="dot" style="background: ' + (TYPE_COLORS[acc.type] || '#888') + ';"></span>' +
+        '<span class="input-label-text">' + escapeHtml(acc.name) + '</span>' +
+        '</label>' +
+        '<input type="number" inputmode="numeric" data-bal="' + acc.id + '" value="' + val + '" placeholder="0" step="1" />' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderChart() {
+    const canvas = document.getElementById('trend-chart');
+    const noDataMsg = document.getElementById('no-data-msg');
+
+    if (state.snapshots.length === 0) {
+      canvas.style.display = 'none';
+      noDataMsg.style.display = 'block';
+      if (chart) { chart.destroy(); chart = null; }
+      return;
+    }
+    canvas.style.display = 'block';
+    noDataMsg.style.display = 'none';
+
+    const range = document.getElementById('range-select').value;
+    let snaps = state.snapshots.slice();
+    if (range !== 'all') {
+      const days = parseInt(range, 10);
+      const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+      snaps = snaps.filter(s => new Date(s.date).getTime() >= cutoff);
+    }
+    if (snaps.length === 0) snaps = state.snapshots.slice(-1);
+
+    const labels = snaps.map(s => formatDate(s.date));
+    const data = snaps.map(s => Math.round(totalOfSnapshot(s)));
+
+    if (chart) chart.destroy();
+    chart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: '総資産',
+          data: data,
+          borderColor: '#378ADD',
+          backgroundColor: 'rgba(55, 138, 221, 0.1)',
+          fill: true,
+          tension: 0.2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#378ADD'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => fmt(ctx.parsed.y)
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: {
+              font: { size: 11 },
+              callback: (v) => '¥' + Math.round(v / 10000) + '万'
+            }
+          },
+          x: {
+            ticks: {
+              font: { size: 11 },
+              maxRotation: 0,
+              autoSkipPadding: 12
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderHistory() {
+    const container = document.getElementById('history-list');
+    if (state.snapshots.length === 0) {
+      container.innerHTML = '<p class="empty">履歴なし</p>';
+      return;
+    }
+    const rows = state.snapshots.slice().reverse().slice(0, 10).map(s => {
+      const d = new Date(s.date);
+      const dateStr = d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+      return '<div class="history-row">' +
+        '<span style="color: var(--text-2);">' + dateStr + '</span>' +
+        '<span style="font-weight: 500;">' + fmt(totalOfSnapshot(s)) + '</span>' +
+        '</div>';
+    }).join('');
+    container.innerHTML = rows;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function exportData() {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const d = new Date();
+    a.download = 'asset-tracker-' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importData(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const imported = JSON.parse(e.target.result);
+        if (!imported.accounts || !imported.snapshots) {
+          alert('このファイルは資産管理アプリのデータではないようです。');
+          return;
+        }
+        if (!confirm('現在のデータを上書きしてインポートしますか？')) return;
+        state = imported;
+        save();
+        render();
+        alert('インポート完了');
+      } catch (err) {
+        alert('ファイルの読み込みに失敗しました。');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function setupEvents() {
+    document.getElementById('add-account-btn').addEventListener('click', () => {
+      document.getElementById('add-account-form').style.display = 'block';
+      document.getElementById('new-name').focus();
+    });
+    document.getElementById('cancel-account').addEventListener('click', () => {
+      document.getElementById('add-account-form').style.display = 'none';
+      document.getElementById('new-name').value = '';
+    });
+    document.getElementById('save-account').addEventListener('click', () => {
+      const name = document.getElementById('new-name').value.trim();
+      const type = document.getElementById('new-type').value;
+      if (!name) { alert('口座名を入力してください'); return; }
+      state.accounts.push({
+        id: 'acc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        name: name,
+        type: type
+      });
+      save();
+      document.getElementById('new-name').value = '';
+      document.getElementById('add-account-form').style.display = 'none';
+      render();
+    });
+
+    document.getElementById('save-snapshot').addEventListener('click', () => {
+      const balances = {};
+      document.querySelectorAll('input[data-bal]').forEach(inp => {
+        const id = inp.getAttribute('data-bal');
+        const val = parseFloat(inp.value) || 0;
+        balances[id] = val;
+      });
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
+
+      const existing = state.snapshots.find(s => s.date.slice(0, 10) === today);
+      if (existing) {
+        existing.balances = balances;
+        existing.date = now.toISOString();
+      } else {
+        state.snapshots.push({ date: now.toISOString(), balances: balances });
+      }
+      state.snapshots.sort((a, b) => new Date(a.date) - new Date(b.date));
+      save();
+      render();
+      // 視覚的フィードバック
+      const btn = document.getElementById('save-snapshot');
+      const orig = btn.textContent;
+      btn.textContent = '✓ 記録しました';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+
+    // メニュー
+    const menuBtn = document.getElementById('menu-btn');
+    const menu = document.getElementById('menu-dropdown');
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    });
+    document.addEventListener('click', (e) => {
+      if (!menu.contains(e.target) && e.target !== menuBtn) {
+        menu.style.display = 'none';
+      }
+    });
+
+    document.getElementById('export-data').addEventListener('click', () => {
+      menu.style.display = 'none';
+      exportData();
+    });
+    document.getElementById('import-data').addEventListener('click', () => {
+      menu.style.display = 'none';
+      document.getElementById('import-file').click();
+    });
+    document.getElementById('import-file').addEventListener('change', (e) => {
+      if (e.target.files[0]) importData(e.target.files[0]);
+      e.target.value = '';
+    });
+
+    document.getElementById('reset-data').addEventListener('click', () => {
+      menu.style.display = 'none';
+      if (confirm('すべてのデータ（口座・履歴）を削除します。この操作は取り消せません。続行しますか？')) {
+        state = { accounts: [], snapshots: [] };
+        save();
+        render();
+      }
+    });
+
+    document.getElementById('range-select').addEventListener('change', renderChart);
+  }
+
+  // PWAインストールプロンプト（Android/Chrome）
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (!localStorage.getItem('install_dismissed')) {
+      document.getElementById('install-banner').style.display = 'block';
+    }
+  });
+
+  document.getElementById('install-btn').addEventListener('click', async () => {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      document.getElementById('install-banner').style.display = 'none';
+    }
+  });
+
+  document.getElementById('close-banner').addEventListener('click', () => {
+    document.getElementById('install-banner').style.display = 'none';
+    localStorage.setItem('install_dismissed', '1');
+  });
+
+  // Service Worker登録（オフライン対応）
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+
+  load();
+  setupEvents();
+  render();
+})();
+</script>
+</body>
+</html>
